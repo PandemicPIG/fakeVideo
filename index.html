@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>fake video test</title>
+    <style>
+        body { padding:0; margin:0; }
+        #fake-player { width: 100vw; height: 100vh; background: darkred; }
+    </style>
+    <script>
+        var fakeVideo = function( config ){
+            var _this = this;
+            
+            this.config = config;
+            
+            this.app_start = new Event('app_start');
+            this.load_ready_ev = new Event('load_ready_ev');
+            this.video_start_ev = new Event('video_start_ev');
+            this.video_end_ev = new Event('video_end_ev');
+            this.images = [];
+            
+            document.addEventListener('app_start', function(){
+                console.log('app started...');
+            });
+            
+            document.addEventListener('video_start_ev', function(){
+                console.log('video started...');
+            });
+            
+            document.addEventListener('video_end_ev', function(){
+                console.log('video ended...');
+            });
+            
+            document.addEventListener('load_ready_ev', function(){
+                console.log('all frames loaded...');
+            });
+            
+            this.frame = 0;
+            this.last_loaded = 0;
+            
+            document.dispatchEvent(this.app_start);
+            this.preload();
+        }
+        
+        fakeVideo.prototype.preload = function(){
+            var _this = this;
+            
+            if( this.last_loaded == 0 ) this.loader_init();
+            
+            this.last_loaded++;
+            
+            //console.log( this.last_loaded );
+            this.loader_update();
+            
+            var frame = '';
+            for( var  j = 0; j < this.config.nr_digits - Math.floor( Math.log10( this.last_loaded ) ) - 1; j++ ) frame += '0';
+            
+            var url =  this.config.vid_location + this.config.filename + frame + this.last_loaded + '.jpg';
+            
+            
+            var img = new Image();
+            img.src = url;
+            
+            img.onload = function(){
+                _this.images.push(img);
+                if( _this.last_loaded < _this.config.frames ) _this.preload();
+                else
+                {
+                    //when all loaded dispatch event
+                    _this.init();
+                }
+            }
+        }
+        
+        fakeVideo.prototype.init = function(){
+            
+            var _this = this;
+            
+            this.loader_remove();
+            
+            this.elm = document.getElementById(this.config.id);
+            document.dispatchEvent(this.load_ready_ev);
+            document.dispatchEvent(this.video_start_ev);
+            
+            this.interval = setInterval(function(){
+                _this.frame++;                
+                _this.apply_next_frame();
+                
+                if( _this.frame >= _this.config.frames )
+                {
+                    clearInterval(_this.interval);
+                    document.dispatchEvent(_this.video_end_ev);
+                }
+            },1000/this.config.fps);
+        }
+        
+        fakeVideo.prototype.apply_next_frame = function(){
+            var _this = this;
+            //console.log('frame', this.frame);
+            var frame = '';
+            for( var  i = 0; i < this.config.nr_digits - Math.floor(Math.log10(this.frame)) - 1; i++ ) frame += '0';
+                
+            //window.requestAnimationFrame(
+                //function(){
+                    _this.elm.style.background = 'url(' + _this.config.vid_location + _this.config.filename + frame + _this.frame + '.jpg)';
+                    _this.elm.style.backgroundPosition = 'center center';
+                    _this.elm.style.backgroundRepeat = 'no-repeat';
+                    _this.elm.style.backgroundSize = 'cover';
+                //}
+            //);
+        }
+        
+        fakeVideo.prototype.loader_init = function(){
+            
+            document.getElementById(this.config.id).innerHTML = '<div id="loader"><div></div></div>';
+            
+            var load_container = document.getElementById('loader');
+            var loader = document.getElementById('loader').getElementsByTagName('div')[0];
+            
+            load_container.style.width = '300px';
+            load_container.style.height = '50px';
+            load_container.style.position = 'absolute';
+            load_container.style.top = '50%';
+            load_container.style.left = '50%';
+            load_container.style.marginTop = '-25px';
+            load_container.style.marginLeft = '-150px';
+            load_container.style.border = '1px solid black';
+            
+            loader.style.background = 'black';
+            loader.style.height = '50px';
+            loader.style.width = '0px';
+        }
+        
+        fakeVideo.prototype.loader_update = function(){
+            var loader = document.getElementById('loader').getElementsByTagName('div')[0];
+            loader.style.width = ( 300/this.config.frames * this.last_loaded ) + 'px';
+        }
+        
+        fakeVideo.prototype.loader_remove = function(){
+            document.getElementById('loader').style.display = 'none';
+        }
+    </script>
+    
+    <script>
+        window.addEventListener('load', function(){
+            var vid_one = new fakeVideo({
+                id: 'fake-player',
+                vid_location: './test_video/',
+                filename: 'test',
+                nr_digits: 4,
+                frames: 100,
+                fps:60
+            });
+        });
+    </script>
+</head>
+<body>
+    <div id="fake-player"></div>
+</body>
+</html>
